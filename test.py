@@ -1,113 +1,47 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch_geometric.data import InMemoryDataset, Data
-from torch_geometric.nn import GCNConv
-from torch_geometric.loader import DataLoader
-from model.gat import GAT
-from model.gsae import GraphSAGE
-from model.gcn import GCN
-from model.mpnn import MPNN
-from  ultils import test_dataset
-import torch.optim.lr_scheduler as lr_scheduler
+import pandas as pd
 import numpy as np
-from sklearn.metrics import mean_squared_error
 
-input_dim = 12
-hidden_dim = 32
-output_dim = 1
-initial_learning_rate = 0.0005
-num_epochs = 300
-batch_size=1
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# 导入数据，路径中要么用\\或/或者在路径前加r
+dataset = pd.read_csv(r'./RF_data/petrol_consumption.csv')
 
-model=GraphSAGE(input_dim, hidden_dim, output_dim,batch_size=batch_size).to(device)
-model.load_state_dict(torch.load("checkpoint/import/latency_gsae_best.pth"))
+# 输出数据预览
+print(dataset.head())
 
-optimizer = optim.Adam(model.parameters(), lr=initial_learning_rate)
-scheduler= lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=10, factor=0.1, verbose=True)
+# 准备训练数据
+# 自变量：汽油税、人均收入、高速公路、人口所占比例
+# 因变量：汽油消耗量
+X = dataset.iloc[:, 0:4].values
+y = dataset.iloc[:, 4].values
+print(X,y)
+exit(0)
+# 将数据分为训练集和测试集
+from sklearn.model_selection import train_test_split
 
-test_dataset=test_dataset(root="data/test")
-test_loader=DataLoader(test_dataset,batch_size=1,shuffle=True)
+X_train, X_test, y_train, y_test = train_test_split(X,
+                                                    y,
+                                                    test_size=0.2,
+                                                    random_state=0)
 
-criterion=nn.MSELoss()
+# 特征缩放，通常没必要
+# 因为数据单位，自变量数值范围差距巨大，不缩放也没问题
+from sklearn.preprocessing import StandardScaler
 
-best_loss = float('inf')
-best_model = None
+sc = StandardScaler()
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
 
-model.eval()
-with torch.no_grad():
-    area_output=[]
-    area_target=[]
-    latency_output = []
-    latency_target = []
-    power_output = []
-    power_target = []
-    ssim_output = []
-    ssim_target = []
-    all_target=[]
-    all_output=[]
-    for data in test_loader:
-        data=data.to(device)
-        optimizer.zero_grad()
-        output = model(data.x,edge_index=torch.tensor([[0,1,2,3],[2,3,4,4]],dtype=torch.long,device=device))
+# 训练随机森林解决回归问题
+from sklearn.ensemble import RandomForestRegressor
 
-        #print(output, data.y)
-        area_output.append(output.item())
-        area_target.append(data.y.item())
-        print("....")
-area_output=np.array(area_output)
-area_target=np.array(area_target)
-np.savetxt("./result/sobel_4k/latency_output.txt",area_output)
-np.savetxt("./result/sobel_4k/latency_target.txt",area_target)
+regressor = RandomForestRegressor(n_estimators=200, random_state=0)
+regressor.fit(X_train, y_train)
+y_pred = regressor.predict(X_test)
 
-'''
-model.eval()
-with torch.no_grad():
-    area_output=[]
-    area_target=[]
-    latency_output = []
-    latency_target = []
-    power_output = []
-    power_target = []
-    ssim_output = []
-    ssim_target = []
-    for data in test_loader:
-        output=model(data.x,edge_index=torch.tensor([[0,1,2,3],[2,3,4,4]],dtype=torch.long))
-        area_output.append(output[0].item())
-        area_target.append(data.y[0].item())
-        latency_output.append(output[0].item())
-        latency_target.append(data.y[0].item())
-        power_output.append(output[0].item())
-        power_target.append(data.y[0].item())
-        ssim_output.append(output[0].item())
-        ssim_target.append(data.y[0].item())
-        print("....")
-area_output=np.array(area_output)
-area_target=np.array(area_target)
-area_mse=mean_squared_error(area_target,area_output)
-power_output=np.array(area_output)
-power_target=np.array(area_target)
-power_mse=mean_squared_error(power_target,power_output)
-latency_output=np.array(area_output)
-latency_target=np.array(area_target)
-latency_mse=mean_squared_error(latency_target,latency_output)
-ssim_output=np.array(ssim_output)
-ssim_target=np.array(ssim_target)
-ssim_mse=mean_squared_error(ssim_target,ssim_output)
-np.savetxt("./result/area_output.txt",area_output)
-np.savetxt("./result/area_target.txt",area_target)
-np.savetxt("./result/power_output.txt",power_output)
-np.savetxt("./result/power_target.txt",power_target)
-np.savetxt("./result/latency_output.txt",latency_output)
-np.savetxt("./result/latency_target.txt",latency_target)
-np.savetxt("./result/ssim_output.txt",ssim_output)
-np.savetxt("./result/ssim_target.txt",ssim_target)
-with open("./result/final.txt","w") as f_end:
-  sents="area"+area_mse+"   "+"power"+power_mse+"   "+"latency"+latency_mse+"   "+"ssim"+ssim_mse
-print("area_mse",area_mse)
-print("power_mse",power_mse)
-print("latency_mse",latency_mse)
-print("ssim_mse",ssim_mse)
-'''
+# 评估回归性能
+from sklearn import metrics
+
+print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred))
+print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred))
+print('Root Mean Squared Error:',
+      np.sqrt(metrics.mean_squared_error(y_test, y_pred)))
+
