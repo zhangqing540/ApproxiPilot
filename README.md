@@ -1,7 +1,10 @@
+![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python&logoColor=white)
 
-## ApproxPilot: A GNN-based Accelerator Approximation Framework
+# ApproxPilot: A GNN-based Accelerator Approximation Framework
 
-ApproxPilot is a research-oriented framework for approximate accelerator optimization, focusing on approximate design space construction, PPA/quality prediction, and multi-objective design space exploration. The framework adopts graph neural networks as the core modeling method, represents approximate accelerators as graph structures, and incorporates critical-path information to improve latency prediction, ultimately enabling Pareto-optimal approximate design search. The proposed framework is evaluated on three representative accelerators: Sobel, Gaussian, and Kmeans.
+
+
+ApproxPilot is a research-oriented framework for approximate accelerator optimization. It integrates approximate design space construction, PPA/quality prediction, and multi-objective design space exploration into a unified workflow. The framework models approximate accelerators as graph-structured data, adopts graph neural networks as surrogate predictors, and incorporates critical-path information to improve latency modeling. The resulting predictions are further used to support Pareto-optimal approximate design search. The framework is evaluated on three representative benchmark applications: Sobel, Gaussian, and Kmeans.
 
 ---
 
@@ -11,15 +14,18 @@ This repository corresponds to the following paper:
 
 - **ApproxPilot: A GNN-based Accelerator Approximation Framework**
 - arXiv: <https://arxiv.org/abs/2407.11324>
+- IEEE ISEDA 2025
 
 If you use the methods, code, or experimental organization in this repository, please cite the paper.
 
 ```bibtex
-@article{approximpilot2024,
+@inproceedings{zhang2025approximpilot,
   title={ApproxPilot: A GNN-based Accelerator Approximation Framework},
-  author={Qing Zhang and Cheng Liu and others},
-  journal={arXiv preprint arXiv:2407.11324},
-  year={2024}
+  author={Zhang, Qing and Liu, Siting and Hui, Yajuan and Liu, Cheng},
+  booktitle={2025 International Symposium of Electronic Design Automation (ISEDA)},
+  pages={226--231},
+  year={2025},
+  organization={IEEE}
 }
 ````
 
@@ -27,48 +33,28 @@ If you use the methods, code, or experimental organization in this repository, p
 
 ## Overall Framework
 
-The overall workflow of ApproxPilot consists of three parts:
+<p align="center">
+  <img src="figures/framework.png" alt="Overall framework of ApproxPilot" width="400">
+</p>
+
+The overall workflow of ApproxPilot consists of three major stages:
 
 1. **Design Space Pruning**
-   The approximate operator library and its combinations are pruned to reduce the candidate design space.
+   The approximate arithmetic library and its combinations are pruned to reduce the candidate design space.
 
 2. **PPA and Quality Modeling**
-   Approximate accelerators are abstracted as graph structures, training datasets are constructed, and prediction models are built for Area, Power, Latency, and SSIM.
+   Approximate accelerators are abstracted as graph structures, labeled datasets are constructed, and prediction models are built for Area, Power, Latency, and SSIM.
 
 3. **Design Space Exploration**
-   Candidate designs are rapidly evaluated based on the prediction models, and Pareto fronts are constructed.
-   
-
-```text
-Approximate Operator Library
-            ↓
-   Design Space Pruning
-            ↓
- Dataset Construction and Labeling
-            ↓
- Critical-Path-Aware GNN Modeling
-            ↓
- Design Space Exploration
-            ↓
- Pareto-Optimal Approximate Designs
-```
+   Candidate designs are rapidly evaluated using the learned predictors, and Pareto fronts are constructed for multi-objective optimization.
 
 ---
 
 ## Main Modules
 
-### dataset
+### `GNN-model/`
 
-`dataset/` is used for dataset construction and mainly includes:
-
-* `ppa/`: scripts for extracting PPA metrics such as area, power, and latency from the synthesis flow
-* `ssim/`: Python-based code for evaluating the output image quality metric SSIM
-
-This part generates the supervision data required for subsequent model training and design space exploration.
-
-### GNN-model
-
-`GNN-model/` is used to build and train graph neural network models for the following prediction targets:
+The `GNN-model/` directory contains the graph neural network models used for hardware-aware prediction. It supports the following prediction targets:
 
 * Area
 * Power
@@ -77,40 +63,57 @@ This part generates the supervision data required for subsequent model training 
 
 For latency prediction, a critical-path-aware mechanism is introduced to improve modeling accuracy.
 
-### dse
+### `approx_lib/`
 
-`dse/` is used for design space exploration and Pareto curve construction. This part performs efficient search over candidate designs based on the prediction models, compares multiple sampling strategies, and finally adopts NSGAIII as the main exploration method.
+The `approx_lib/` directory documents the approximate arithmetic units used in ApproxPilot. The approximate arithmetic units in this work are derived from [EvoApproxLib](https://github.com/ehw-fit/evoapproxlib). These units are used to construct and evaluate the approximate design space.
+
+### `benchmarks/`
+
+The `benchmarks/` directory documents the benchmark applications used in ApproxPilot. The benchmark applications in this work are derived from [AxBench](http://axbench.org/). The evaluation is conducted on three representative benchmarks:
+
+* Sobel
+* Gaussian
+* Kmeans
+
+### `dataset/`
+
+The `dataset/` directory contains the dataset construction flow of ApproxPilot. It mainly includes:
+
+* `ppa/`: scripts for extracting hardware metrics such as area, power, and latency from the synthesis flow
+* `ssim/`: Python-based code for evaluating the output image quality metric SSIM
+
+This module provides the labeled data required for model training and downstream design space exploration.
+
+### `dse/`
+
+The `dse/` directory contains the design space exploration flow and Pareto construction process. It performs efficient search over candidate designs based on the learned predictors. Different sampling strategies are compared, and NSGAIII is adopted as the main exploration method.
+
+### `requirements/`
+
+The `requirements/` directory documents the hardware and software environment used in ApproxPilot experiments, including hardware configuration, software versions, and major dependencies.
 
 ---
 
 ## Method Characteristics
 
-* **End-to-end approximation optimization flow**: unifies design space pruning, performance modeling, and DSE within a single framework.
-* **Critical-path-aware latency modeling**: introduces critical-path information for latency prediction to improve accuracy.
-* **Multi-objective optimization**: jointly considers area, power, latency, and output quality.
+* **End-to-end approximation optimization flow**
+  ApproxPilot unifies design space pruning, performance/quality modeling, and design space exploration within a single framework.
+
+* **Critical-path-aware latency modeling**
+  Critical-path information is incorporated into graph-based prediction to improve latency estimation accuracy.
+
+* **Multi-objective optimization**
+  The framework jointly considers area, power, latency, and output quality for approximate design search.
 
 ---
 
 ## Highlights of Results
 
-Experiments are conducted on three benchmarks, Sobel, Gaussian, and Kmeans, and the results show that:
+Experiments are conducted on three benchmark applications, Sobel, Gaussian, and Kmeans. The results show that:
 
 * ApproxPilot outperforms AutoAX on multiple benchmarks, with more pronounced advantages on Gaussian and Kmeans.
 * The critical-path-aware GNN outperforms random forest and baseline GNN in latency prediction.
 * On the Gaussian latency prediction task, the critical-path-aware GNN improves R² by 25% over random forest and by 20% over the baseline GNN.
-
----
-
-## Requirements
-
-The experimental code in this repository mainly depends on the following environments and tools:
-
-* **Python**: for data processing, quality evaluation, and design space exploration
-* **PyTorch Geometric (PyG)**: for graph neural network modeling and training
-* **Synopsys Design Compiler (DC)**: for obtaining PPA metrics such as area, power, and latency
-* **Common Python scientific computing libraries**: such as NumPy, Pandas, and Scikit-learn
-
-Specific experiments may still need to be adapted according to the local synthesis environment, dataset paths, and benchmark configurations.
 
 ---
 
@@ -127,25 +130,13 @@ This repository is organized according to the overall ApproxPilot workflow, and 
 3. **Design Space Exploration**
    Perform multi-objective design space exploration and construct Pareto fronts in the `dse/` directory based on the prediction results.
 
-Code for different benchmarks (Sobel, Gaussian, and Kmeans) is located in the corresponding subdirectories of each module.
+Additional information about benchmark sources, approximate arithmetic units, and experimental environments can be found in `benchmarks/`, `approx_lib/`, and `requirements/`.
 
 ---
 
-## Repository Structure
 
-```text
-ApproxiPilot/
-├── dataset/        # Dataset construction
-│   ├── ppa/        # PPA metric extraction
-│   └── ssim/       # SSIM evaluation
-├── GNN-model/      # GNN modeling
-│   ├── area/
-│   ├── power/
-│   ├── latency/
-│   └── ssim/
-├── dse/            # Design space exploration and Pareto construction
-└── README.md
-```
+## Notes
 
-```
-```
+This repository is organized as a research-oriented implementation of the ApproxPilot framework. It includes the main components for dataset construction, graph-based prediction, and design space exploration, together with benchmark and approximate library descriptions used in the experiments.
+
+
